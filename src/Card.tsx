@@ -30,6 +30,7 @@ const SNAP_POINTS = [-side, 0, side];
 export const Card = ({ card: { source } }: CardProps) => {
     const x = useSharedValue(0);
     const y = useSharedValue(0);
+    const rotateZ = useSharedValue(Math.random() * 20 - 10);
 
     const onGestureEvent = useAnimatedGestureHandler<
         PanGestureHandlerGestureEvent,
@@ -54,6 +55,7 @@ export const Card = ({ card: { source } }: CardProps) => {
         transform: [
             { perspective: 1500 },
             { rotateX: '30deg'},
+            { rotateZ: `${rotateZ.value}deg`},
             { translateX: x.value },
             { translateY: y.value }
         ]
