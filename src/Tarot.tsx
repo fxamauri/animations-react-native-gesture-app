@@ -34,7 +34,7 @@ export const Tarot = () => {
     return (
         <View style={styles.container}>
             {cards.map((card, index) => (
-                <Card card={card} key={index} />
+                <Card card={card} key={index} index={index} />
             ))}
         </View>
     )

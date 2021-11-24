@@ -19,6 +19,7 @@ interface CardProps {
     card: {
         source: ReturnType<typeof require>;
     };
+    index: number;
 }
 
 const { width: wWidth, height } = Dimensions.get("window");
