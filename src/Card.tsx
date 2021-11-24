@@ -5,11 +5,13 @@ import {
     PanGestureHandlerGestureEvent
 } from "react-native-gesture-handler";
 import Animated, {
+    Easing,
     useAnimatedGestureHandler,
     useAnimatedStyle,
-    useSharedValue, withSpring
+    useSharedValue, withSpring, withTiming
 } from 'react-native-reanimated';
 import {snapPoint} from "react-native-redash";
+import {scryRenderedDOMComponentsWithClass} from "react-dom/test-utils";
 
 interface CardProps {
     card: {
@@ -31,6 +33,7 @@ export const Card = ({ card: { source } }: CardProps) => {
     const x = useSharedValue(0);
     const y = useSharedValue(0);
     const rotateZ = useSharedValue(Math.random() * 20 - 10);
+    const scale = useSharedValue(1);
 
     const onGestureEvent = useAnimatedGestureHandler<
         PanGestureHandlerGestureEvent,
@@ -39,6 +42,8 @@ export const Card = ({ card: { source } }: CardProps) => {
             onStart: (_, ctx) => {
                 ctx.x = x.value;
                 ctx.y = y.value;
+                scale.value = withTiming(1.1, { easing: Easing.inOut(Easing.ease) });
+                rotateZ.value = withTiming(0, { easing: Easing.inOut(Easing.ease) })
             },
             onActive: ({ translationX, translationY }, ctx) => {
                 x.value = ctx.x + translationX;
@@ -57,7 +62,8 @@ export const Card = ({ card: { source } }: CardProps) => {
             { rotateX: '30deg'},
             { rotateZ: `${rotateZ.value}deg`},
             { translateX: x.value },
-            { translateY: y.value }
+            { translateY: y.value },
+            { scale: scale.value },
         ]
     }));
     return (
