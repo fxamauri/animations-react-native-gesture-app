@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from "react-native";
 import { Card } from './Card';
+import {useSharedValue} from "react-native-reanimated";
 
 const cards = [
     {
@@ -31,10 +32,16 @@ const cards = [
 
 
 export const Tarot = () => {
+    const shuffleBack = useSharedValue(false)
     return (
         <View style={styles.container}>
             {cards.map((card, index) => (
-                <Card card={card} key={index} index={index} />
+                <Card
+                    card={card}
+                    key={index}
+                    index={index}
+                    shuffleBack={shuffleBack}
+                />
             ))}
         </View>
     )

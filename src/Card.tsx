@@ -1,103 +1,120 @@
-import React from 'react';
+import React, { useEffect } from "react";
 import { View, StyleSheet, Dimensions, Image } from "react-native";
-import {
-    PanGestureHandler,
-    PanGestureHandlerGestureEvent
-} from "react-native-gesture-handler";
+import type { PanGestureHandlerGestureEvent } from "react-native-gesture-handler";
+import { PanGestureHandler } from "react-native-gesture-handler";
 import Animated, {
     Easing,
     useAnimatedGestureHandler,
+    useAnimatedReaction,
     useAnimatedStyle,
     useSharedValue,
+    withDelay,
     withSpring,
     withTiming,
-    withDelay
-} from 'react-native-reanimated';
-import {snapPoint} from "react-native-redash";
+} from "react-native-reanimated";
+import { snapPoint } from "react-native-redash";
+
+const { width: wWidth, height } = Dimensions.get("window");
+
+const SNAP_POINTS = [-wWidth, 0, wWidth];
+const aspectRatio = 722 / 368;
+const CARD_WIDTH = wWidth - 128;
+const CARD_HEIGHT = CARD_WIDTH * aspectRatio;
+const IMAGE_WIDTH = CARD_WIDTH * 0.9;
+const DURATION = 250;
 
 interface CardProps {
     card: {
         source: ReturnType<typeof require>;
     };
+    shuffleBack: Animated.SharedValue<boolean>;
     index: number;
 }
 
-const { width: wWidth, height } = Dimensions.get("window");
-
-const aspectRatio = 722 / 368;
-const DURATION = 250;
-const CARD_WIDTH = wWidth - 128;
-const CARD_HEIGHT = CARD_WIDTH * aspectRatio;
-const IMAGE_WIDTH = CARD_WIDTH * 0.9;
-const side = (wWidth + CARD_WIDTH + 50) / 2;
-const SNAP_POINTS = [-side, 0, side];
-
-
-export const Card = ({ card: { source }, index }: CardProps) => {
-    const x = useSharedValue(0);
-    const y = useSharedValue(-height);
-    const rotateZ = useSharedValue(Math.random() * 20 - 10);
+export const Card = ({ card: { source }, shuffleBack, index }: CardProps) => {
+    const translateX = useSharedValue(0);
+    const translateY = useSharedValue(-height);
     const scale = useSharedValue(1);
-
-    React.useEffect(() => {
-        const delay = index * DURATION;
-        y.value = withDelay(
+    const rotateZ = useSharedValue(0);
+    const delay = index * DURATION;
+    const theta = -10 + Math.random() * 20;
+    useEffect(() => {
+        translateY.value = withDelay(
             delay,
-            withTiming(0,{
-                duration: DURATION,
-                easing: Easing.inOut(Easing.ease),
-            })
-        )
-    }, []);
+            withTiming(0, { duration: DURATION, easing: Easing.inOut(Easing.ease) })
+        );
+        rotateZ.value = withDelay(delay, withSpring(theta));
+    }, [delay, index, rotateZ, theta, translateY]);
+    useAnimatedReaction(
+        () => shuffleBack.value,
+        (v) => {
+            if (v) {
+                const duration = 150 * index;
+                translateX.value = withDelay(
+                    duration,
+                    withSpring(0, {}, () => {
+                        shuffleBack.value = false;
+                    })
+                );
+                rotateZ.value = withDelay(duration, withSpring(theta));
+            }
+        }
+    );
     const onGestureEvent = useAnimatedGestureHandler<
         PanGestureHandlerGestureEvent,
-        { x: number, y: number }
+        { x: number; y: number }
         >({
         onStart: (_, ctx) => {
-            ctx.x = x.value;
-            ctx.y = y.value;
-            scale.value = withTiming(1.1, { easing: Easing.inOut(Easing.ease) });
-            rotateZ.value = withTiming(0, { easing: Easing.inOut(Easing.ease) })
+            ctx.x = translateX.value;
+            ctx.y = translateY.value;
+            rotateZ.value = withTiming(0);
+            scale.value = withTiming(1.1);
         },
         onActive: ({ translationX, translationY }, ctx) => {
-            x.value = ctx.x + translationX;
-            y.value = ctx.y + translationY;
+            translateX.value = ctx.x + translationX;
+            translateY.value = ctx.y + translationY;
         },
         onEnd: ({ velocityX, velocityY }) => {
-            const dest = snapPoint(x.value, velocityX, SNAP_POINTS);
-            x.value = withSpring(dest, { velocity: velocityX })
-            y.value = withSpring(0, { velocity: velocityY });
-            scale.value = withTiming(1, { easing: Easing.inOut(Easing.ease) })
-        }
+            const dest = snapPoint(translateX.value, velocityX, SNAP_POINTS);
+            translateX.value = withSpring(dest, { velocity: velocityX });
+            translateY.value = withSpring(0, { velocity: velocityY });
+            scale.value = withTiming(1, {}, () => {
+                const isLast = index === 0;
+                const isSwipedLeftOrRight = dest !== 0;
+                if (isLast && isSwipedLeftOrRight) {
+                    shuffleBack.value = true;
+                }
+            });
+        },
     });
-
     const style = useAnimatedStyle(() => ({
         transform: [
             { perspective: 1500 },
-            { rotateX: '30deg'},
-            { rotateZ: `${rotateZ.value}deg`},
-            { translateX: x.value },
-            { translateY: y.value },
+            { rotateX: "30deg" },
+            { translateX: translateX.value },
+            { translateY: translateY.value },
+            { rotateY: `${rotateZ.value / 10}deg` },
+            { rotateZ: `${rotateZ.value}deg` },
             { scale: scale.value },
-        ]
+        ],
     }));
     return (
         <View style={styles.container} pointerEvents="box-none">
-            <PanGestureHandler onGestureEvent={onGestureEvent}>
+            <PanGestureHandler onGestureEvent={onGestureEvent} minDist={0}>
                 <Animated.View style={[styles.card, style]}>
                     <Image
                         source={source}
-                        resizeMode="contain"
                         style={{
                             width: IMAGE_WIDTH,
-                            height: IMAGE_WIDTH * aspectRatio
+                            height: IMAGE_WIDTH * aspectRatio,
                         }}
+                        resizeMode="contain"
                     />
                 </Animated.View>
             </PanGestureHandler>
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
@@ -121,5 +138,4 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
         elevation: 5,
     },
-
 });
